@@ -906,13 +906,16 @@ class Group(Node):
             if isinstance(member, Group):
                 member._visit(func, origin_name, visit_links, visititems)
 
-    def create_group(self, name):
+    def create_group(self, name, track_order=None):
         """Create and return a new subgroup.
 
         Name may be absolute or relative.  Fails if the target name already
         exists.
 
         :param str name: Name of the new group
+        :param bool track_order: Track dataset/group/attribute creation order
+            under this group if True. If None use global default
+            h5py.get_config().track_order
         """
         if not self._is_editable():
             raise RuntimeError("File is not editable")
