@@ -242,7 +242,7 @@ class Hdf5Writer(object):
         elif is_group(obj):
             if h5_name not in self._h5f:
                 _logger.debug("Creating group: " + h5_name)
-                grp = self._h5f.create_group(h5_name)
+                grp = self._h5f.create_group(h5_name, track_order=True)
             else:
                 grp = self._h5f[h5_name]
 
