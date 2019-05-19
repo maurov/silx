@@ -600,9 +600,15 @@ class SoftLink(Node):
 class Group(Node):
     """This class mimics a `h5py.Group`."""
 
-    def __init__(self, name, parent=None, attrs=None):
+    def __init__(self, name, parent=None, attrs=None, track_order=None):
+        """
+        :param bool track_order: Track dataset/group/attribute creation order
+            under this group if True. If None use global default
+            h5py.get_config().track_order
+        """
         Node.__init__(self, name, parent, attrs=attrs)
         self.__items = collections.OrderedDict()
+        self.__track_order = track_order
 
     def _get_items(self):
         """Returns the child items as a name-node dictionary.
@@ -906,7 +912,7 @@ class Group(Node):
             if isinstance(member, Group):
                 member._visit(func, origin_name, visit_links, visititems)
 
-    def create_group(self, name, track_order=None):
+    def create_group(self, name):
         """Create and return a new subgroup.
 
         Name may be absolute or relative.  Fails if the target name already
@@ -924,7 +930,7 @@ class Group(Node):
 
         if name.startswith("/"):
             name = name[1:]
-            return self.file.create_group(name)
+            return self.file.create_group(name, track_order=self.__track_order)
 
         elements = name.split('/')
         group = self
@@ -934,7 +940,7 @@ class Group(Node):
                 if not isinstance(group, Group):
                     raise RuntimeError("Unable to create group (group parent is missing")
             else:
-                node = Group(basename)
+                node = Group(basename, track_order=self.__track_order)
                 group.add_node(node)
                 group = node
         return group
