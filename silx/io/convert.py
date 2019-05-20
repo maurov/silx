@@ -128,7 +128,8 @@ class Hdf5Writer(object):
                  overwrite_data=False,
                  link_type="soft",
                  create_dataset_args=None,
-                 min_size=500):
+                 min_size=500,
+                 track_order=None):
         """
 
         :param h5path: Target path where the scan groups will be written
@@ -140,6 +141,8 @@ class Hdf5Writer(object):
             ``h5py.File.create_dataset``.
             See documentation of :func:`write_to_h5`
         :param int min_size:
+            See documentation of :func:`write_to_h5`
+        :param bool track_order:
             See documentation of :func:`write_to_h5`
         """
         self.h5path = h5path
@@ -165,6 +168,8 @@ class Hdf5Writer(object):
 
         self._links = []
         """List of *(link_path, target_path)* tuples."""
+
+        self.__track_order = track_order
 
     def write(self, infile, h5f):
         """Do the conversion from :attr:`sfh5` (Spec file) to *h5f* (HDF5)
@@ -242,7 +247,8 @@ class Hdf5Writer(object):
         elif is_group(obj):
             if h5_name not in self._h5f:
                 _logger.debug("Creating group: " + h5_name)
-                grp = self._h5f.create_group(h5_name, track_order=True)
+                grp = self._h5f.create_group(h5_name,
+                                             track_order=self.__track_order)
             else:
                 grp = self._h5f[h5_name]
 
@@ -261,7 +267,7 @@ def _is_commonh5_group(grp):
 
 def write_to_h5(infile, h5file, h5path='/', mode="a",
                 overwrite_data=False, link_type="soft",
-                create_dataset_args=None, min_size=500):
+                create_dataset_args=None, min_size=500, track_order=None):
     """Write content of a h5py-like object into a HDF5 file.
 
     :param infile: Path of input file, or :class:`commonh5.File` object
@@ -284,6 +290,10 @@ def write_to_h5(infile, h5file, h5path='/', mode="a",
         These arguments are only applied to datasets larger than 1MB.
     :param int min_size: Minimum number of elements in a dataset to apply
         chunking and compression. Default is 500.
+    :param bool track_order: Track dataset/group/attribute creation order
+        under this group if True. If None use global default
+        h5py.get_config().track_order
+
 
     The structure of the spec data in an HDF5 file is described in the
     documentation of :mod:`silx.io.spech5`.
@@ -292,14 +302,15 @@ def write_to_h5(infile, h5file, h5path='/', mode="a",
                         overwrite_data=overwrite_data,
                         link_type=link_type,
                         create_dataset_args=create_dataset_args,
-                        min_size=min_size)
+                        min_size=min_size,
+                        track_order=track_order)
 
     # both infile and h5file can be either file handle or a file name: 4 cases
     if not isinstance(h5file, h5py.File) and not is_group(infile):
         with silx.io.open(infile) as h5pylike:
             if not _is_commonh5_group(h5pylike):
                 raise IOError("Cannot convert HDF5 file %s to HDF5" % infile)
-            with h5py.File(h5file, mode) as h5f:
+            with h5py.File(h5file, mode, track_order=track_order) as h5f:
                 writer.write(h5pylike, h5f)
     elif isinstance(h5file, h5py.File) and not is_group(infile):
         with silx.io.open(infile) as h5pylike:
@@ -309,7 +320,7 @@ def write_to_h5(infile, h5file, h5path='/', mode="a",
     elif is_group(infile) and not isinstance(h5file, h5py.File):
         if not _is_commonh5_group(infile):
             raise IOError("Cannot convert HDF5 file %s to HDF5" % infile.file.name)
-        with h5py.File(h5file, mode) as h5f:
+        with h5py.File(h5file, mode, track_order=track_order) as h5f:
             writer.write(infile, h5f)
     else:
         if not _is_commonh5_group(infile):
